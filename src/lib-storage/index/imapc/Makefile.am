@@ -17,10 +17,10 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/lib-var-expand
 
 libstorage_imapc_la_SOURCES = \
-	imapc-attribute.c \
-	imapc-list.c \
-	imapc-mail.c \
-	imapc-mail-fetch.c \
+	imapc-attribute.cpp \
+	imapc-list.cpp \
+	imapc-mail.cpp \
+	imapc-mail-fetch.cpp \
 	imapc-mailbox.c \
 	imapc-save.c \
 	imapc-search.c \

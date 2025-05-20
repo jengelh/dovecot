@@ -251,7 +251,7 @@ imapc_mail_get_header_stream(struct mail *_mail,
 		return 0;
 
 	/* fetch only the wanted headers */
-	if (imapc_mail_fetch(_mail, 0, headers->name) < 0)
+	if (imapc_mail_fetch(_mail, mail_fetch_field{}, headers->name) < 0)
 		return -1;
 	/* the headers should cached now. */
 	return index_mail_get_header_stream(_mail, headers, stream_r);
@@ -391,7 +391,7 @@ void imapc_mail_update_access_parts(struct index_mail *mail)
 				    MAIL_FETCH_VIRTUAL_SIZE)) != 0) {
 		if (index_mail_get_physical_size(_mail, &size) < 0 &&
 		    IMAPC_BOX_HAS_FEATURE(mbox, IMAPC_FEATURE_NO_FETCH_SIZE))
-			data->access_part |= READ_HDR | READ_BODY;
+			data->access_part = static_cast<index_mail_access_part>(data->access_part | READ_HDR | READ_BODY);
 	}
 	if ((data->wanted_fields & MAIL_FETCH_GUID) != 0)
 		(void)imapc_mail_get_cached_guid(_mail);
@@ -404,7 +404,7 @@ void imapc_mail_update_access_parts(struct index_mail *mail)
 	    IMAPC_BOX_HAS_FEATURE(mbox, IMAPC_FEATURE_NO_FETCH_HEADERS)) {
 		/* see if all wanted headers exist in cache */
 		if (!imapc_mail_has_headers_in_cache(mail, data->wanted_headers))
-			data->access_part |= PARSE_HDR;
+			data->access_part = static_cast<index_mail_access_part>(data->access_part | PARSE_HDR);
 	}
 	if (data->access_part == 0 &&
 	    (data->wanted_fields & MAIL_FETCH_IMAP_ENVELOPE) != 0 &&
@@ -414,7 +414,7 @@ void imapc_mail_update_access_parts(struct index_mail *mail)
 		header_ctx = mailbox_header_lookup_init(_mail->box,
 							message_part_envelope_headers);
 		if (!imapc_mail_has_headers_in_cache(mail, header_ctx))
-			data->access_part |= PARSE_HDR;
+			data->access_part = static_cast<index_mail_access_part>(data->access_part | PARSE_HDR);
 		mailbox_header_lookup_unref(&header_ctx);
 	}
 }
@@ -516,7 +516,7 @@ static bool imapc_mail_get_cached_guid(struct mail *_mail)
 {
 	struct index_mail *imail = INDEX_MAIL(_mail);
 	const enum index_cache_field cache_idx =
-		imail->ibox->cache_fields[MAIL_CACHE_GUID].idx;
+		static_cast<index_cache_field>(imail->ibox->cache_fields[MAIL_CACHE_GUID].idx);
 	string_t *str;
 
 	if (imail->data.guid != NULL) {
@@ -543,7 +543,7 @@ static int imapc_mail_get_guid(struct mail *_mail, const char **value_r)
 	struct index_mail *imail = INDEX_MAIL(_mail);
 	struct imapc_mailbox *mbox = IMAPC_MAILBOX(_mail->box);
 	const enum index_cache_field cache_idx =
-		imail->ibox->cache_fields[MAIL_CACHE_GUID].idx;
+		static_cast<index_cache_field>(imail->ibox->cache_fields[MAIL_CACHE_GUID].idx);
 
 	if (imapc_mail_get_cached_guid(_mail)) {
 		*value_r = imail->data.guid;
@@ -599,7 +599,7 @@ imapc_mail_get_special(struct mail *_mail, enum mail_fetch_field field,
 		}
 
 		*value_r = p_strdup_printf(imail->mail.data_pool,
-					   "GmailId%"PRIx64, num);
+					   "GmailId%" PRIx64, num);
 		return 0;
 	case MAIL_FETCH_IMAP_BODY:
 		if (IMAPC_BOX_HAS_FEATURE(mbox, IMAPC_FEATURE_NO_FETCH_BODYSTRUCTURE))

@@ -156,7 +156,7 @@ imapc_list_copy_error_from_reply(struct imapc_mailbox_list *list,
 static void imapc_list_simple_callback(const struct imapc_command_reply *reply,
 				       void *context)
 {
-	struct imapc_simple_context *ctx = context;
+	auto ctx = static_cast<imapc_simple_context *>(context);
 
 	if (reply->state == IMAPC_COMMAND_STATE_OK)
 		ctx->ret = 0;
@@ -229,7 +229,7 @@ imapc_list_update_tree(struct imapc_mailbox_list *list,
 	struct mailbox_node *node;
 	const struct imap_arg *flags;
 	const char *remote_name, *flag;
-	enum mailbox_info_flags info_flag, info_flags = 0;
+	enum mailbox_info_flags info_flag, info_flags{};
 	bool created;
 
 	if (!imap_arg_get_list(&args[0], &flags) ||
@@ -239,7 +239,7 @@ imapc_list_update_tree(struct imapc_mailbox_list *list,
 
 	while (imap_arg_get_atom(flags, &flag)) {
 		if (imap_list_flag_parse(flag, &info_flag))
-			info_flags |= info_flag;
+			info_flags = static_cast<mailbox_info_flags>(info_flags | info_flag);
 		flags++;
 	}
 
@@ -296,11 +296,11 @@ static void imapc_untagged_lsub(const struct imapc_untagged_reply *reply,
 				      list->list.subscriptions, args);
 	if (node != NULL) {
 		if ((node->flags & MAILBOX_NOSELECT) == 0)
-			node->flags |= MAILBOX_SUBSCRIBED;
+			node->flags = static_cast<mailbox_info_flags>(node->flags | MAILBOX_SUBSCRIBED);
 		else {
 			/* LSUB \Noselect means that the mailbox isn't
 			   subscribed, but it has children that are */
-			node->flags &= ENUM_NEGATE(MAILBOX_NOSELECT);
+			node->flags = static_cast<mailbox_info_flags>(node->flags & ENUM_NEGATE(MAILBOX_NOSELECT));
 		}
 	}
 }
@@ -322,7 +322,7 @@ static void imapc_list_sep_verify(struct imapc_mailbox_list *list)
 static void imapc_storage_sep_callback(const struct imapc_command_reply *reply,
 				       void *context)
 {
-	struct imapc_mailbox_list *list = context;
+	auto list = static_cast<struct imapc_mailbox_list *>(context);
 
 	list->root_sep_pending = FALSE;
 	if (reply->state == IMAPC_COMMAND_STATE_OK)
@@ -467,7 +467,7 @@ static struct mailbox_list *imapc_list_get_fs(struct imapc_mailbox_list *list)
 			      list->index_list_set_instance);
 		settings_event_add_filter_name(event,
 			MAILBOX_LIST_NAME_MAILDIRPLUSPLUS);
-		if (settings_get(event, &mail_storage_setting_parser_info, 0,
+		if (settings_get(event, &mail_storage_setting_parser_info, settings_get_flags{},
 				 &mail_set, &error) < 0) {
 			e_error(list->list.event, "%s", error);
 			list->index_list_failed = TRUE;
@@ -578,9 +578,9 @@ static void imapc_list_delete_unused_indexes(struct imapc_mailbox_list *list)
 		return;
 
 	iter = mailbox_list_iter_init(fs_list, "*",
-				      MAILBOX_LIST_ITER_RAW_LIST |
+				      static_cast<mailbox_list_iter_flags>(MAILBOX_LIST_ITER_RAW_LIST |
 				      MAILBOX_LIST_ITER_NO_AUTO_BOXES |
-				      MAILBOX_LIST_ITER_RETURN_NO_FLAGS);
+				      MAILBOX_LIST_ITER_RETURN_NO_FLAGS));
 	while ((info = mailbox_list_iter_next(iter)) != NULL) T_BEGIN {
 		fs_name = mailbox_list_get_storage_name(fs_list, info->vname);
 		storage_name = imapc_list_fs_to_storage_name(list, fs_name);
@@ -639,7 +639,7 @@ static int imapc_list_refresh(struct imapc_mailbox_list *list)
 			   might have included its children. make sure there
 			   aren't any extra flags in it (especially
 			   \NonExistent) */
-			node->flags &= MAILBOX_CHILDREN;
+			node->flags = static_cast<mailbox_info_flags>(node->flags & MAILBOX_CHILDREN);
 		}
 	}
 
@@ -1016,7 +1016,7 @@ int imapc_list_get_mailbox_flags(struct mailbox_list *_list, const char *name,
 
 	if (list->mailboxes == NULL) {
 		/* imapc list isn't used, but e.g. mailbox_list_layout=none */
-		*flags_r = 0;
+		*flags_r = mailbox_info_flags{};
 		return 0;
 	}
 	node = mailbox_tree_lookup(list->mailboxes, vname);
@@ -1029,8 +1029,8 @@ int imapc_list_get_mailbox_flags(struct mailbox_list *_list, const char *name,
 
 struct mailbox_list imapc_mailbox_list = {
 	.name = MAILBOX_LIST_NAME_IMAPC,
-	.props = MAILBOX_LIST_PROP_NO_ROOT | MAILBOX_LIST_PROP_AUTOCREATE_DIRS |
-		 MAILBOX_LIST_PROP_NO_LIST_INDEX,
+	.props = static_cast<mailbox_list_properties>(MAILBOX_LIST_PROP_NO_ROOT | MAILBOX_LIST_PROP_AUTOCREATE_DIRS |
+		 MAILBOX_LIST_PROP_NO_LIST_INDEX),
 	.mailbox_name_max_length = MAILBOX_LIST_NAME_MAX_LENGTH,
 
 	.v = {

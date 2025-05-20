@@ -149,7 +149,7 @@ int settings_get(struct event *event,
 #else
 #  define settings_get(event, info, flags, set_r, error_r) \
 	settings_get(event, info, flags, \
-		__FILE__, __LINE__, (void *)set_r, error_r)
+		__FILE__, __LINE__, (const void **)set_r, error_r)
 #endif
 
 /* Like settings_get(), but support additional parameters. */

@@ -234,7 +234,7 @@ imapc_storage_attribute_handling(struct mailbox *box,
 	/* If we got here then we want to access metadata in the imapc backend.
 	   Check if that is possible. */
 	struct imapc_mailbox *mbox = IMAPC_MAILBOX(box);
-	enum imapc_capability capabilities = 0;
+	enum imapc_capability capabilities{};// = 0;
 
 	if (!IMAPC_HAS_FEATURE(mbox->storage, IMAPC_FEATURE_NO_METADATA)) {
 		if (mbox->capabilities == 0 &&
