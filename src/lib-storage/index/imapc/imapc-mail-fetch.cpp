@@ -55,7 +55,7 @@ static void
 imapc_mail_fetch_callback(const struct imapc_command_reply *reply,
 			  void *context)
 {
-	struct imapc_fetch_request *request = context;
+	auto request = static_cast<imapc_fetch_request *>(context);
 	struct imapc_mail *mail;
 	struct imapc_mailbox *mbox = NULL;
 	unsigned int i;
@@ -64,7 +64,7 @@ imapc_mail_fetch_callback(const struct imapc_command_reply *reply,
 		i_assert(mail->fetch_count > 0);
 		imapc_mail_set_failure(mail, reply);
 		if (--mail->fetch_count == 0)
-			mail->fetching_fields = 0;
+			mail->fetching_fields = {};
 		mbox = IMAPC_MAILBOX(mail->imail.mail.mail.box);
 	}
 	i_assert(mbox != NULL);
@@ -219,7 +219,7 @@ imapc_mail_send_fetch(struct mail *_mail, enum mail_fetch_field fields,
 		return -1;
 
 	/* drop any fields that we may already be fetching currently */
-	fields &= ENUM_NEGATE(mail->fetching_fields);
+	fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(mail->fetching_fields));
 	if (headers_have_subset(mail->fetching_headers, headers))
 		headers = NULL;
 	if (fields == 0 && headers == NULL)
@@ -245,7 +245,7 @@ imapc_mail_send_fetch(struct mail *_mail, enum mail_fetch_field fields,
 	}
 
 	if ((fields & MAIL_FETCH_STREAM_BODY) != 0)
-		fields |= MAIL_FETCH_STREAM_HEADER;
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_STREAM_HEADER);
 
 	str = t_str_new(64);
 	str_printfa(str, "UID FETCH %u (", _mail->uid);
@@ -278,7 +278,7 @@ imapc_mail_send_fetch(struct mail *_mail, enum mail_fetch_field fields,
 			   full body and sometimes only the headers. */
 			str_append(str, "BODY.PEEK[HEADER] BODY.PEEK[TEXT] ");
 		}
-		fields |= MAIL_FETCH_STREAM_HEADER;
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_STREAM_HEADER);
 	} else if ((fields & MAIL_FETCH_STREAM_HEADER) != 0)
 		str_append(str, "BODY.PEEK[HEADER] ");
 	else if (headers != NULL) {
@@ -297,7 +297,7 @@ imapc_mail_send_fetch(struct mail *_mail, enum mail_fetch_field fields,
 	str_truncate(str, str_len(str)-1);
 	str_append_c(str, ')');
 
-	mail->fetching_fields |= fields;
+	mail->fetching_fields = static_cast<mail_fetch_field>(mail->fetching_fields | fields);
 	mail->fetch_count++;
 	mail->fetch_sent = FALSE;
 	mail->fetch_failed = FALSE;
@@ -338,39 +338,39 @@ imapc_mail_get_wanted_fetch_fields(struct imapc_mail *mail)
 {
 	struct imapc_mailbox *mbox = IMAPC_MAILBOX(mail->imail.mail.mail.box);
 	struct index_mail_data *data = &mail->imail.data;
-	enum mail_fetch_field fields = 0;
+	enum mail_fetch_field fields{};
 
 	if ((data->wanted_fields & MAIL_FETCH_RECEIVED_DATE) != 0 &&
 	    data->received_date == (time_t)-1)
-		fields |= MAIL_FETCH_RECEIVED_DATE;
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_RECEIVED_DATE);
 	if ((data->wanted_fields & MAIL_FETCH_SAVE_DATE) != 0 &&
 	    data->save_date == (time_t)-1) {
 		if (HAS_ALL_BITS(mbox->capabilities, IMAPC_CAPABILITY_SAVEDATE))
-			fields |= MAIL_FETCH_SAVE_DATE;
+			fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_SAVE_DATE);
 		else
-			fields |= MAIL_FETCH_RECEIVED_DATE;
+			fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_RECEIVED_DATE);
 	}
 	if ((data->wanted_fields & (MAIL_FETCH_PHYSICAL_SIZE |
 				    MAIL_FETCH_VIRTUAL_SIZE)) != 0 &&
 	    data->physical_size == UOFF_T_MAX &&
 	    !IMAPC_BOX_HAS_FEATURE(mbox, IMAPC_FEATURE_NO_FETCH_SIZE))
-		fields |= MAIL_FETCH_PHYSICAL_SIZE | MAIL_FETCH_VIRTUAL_SIZE;
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_PHYSICAL_SIZE | MAIL_FETCH_VIRTUAL_SIZE);
 	if ((data->wanted_fields & MAIL_FETCH_IMAP_BODY) != 0 &&
 	    data->body == NULL &&
 	    !IMAPC_BOX_HAS_FEATURE(mbox, IMAPC_FEATURE_NO_FETCH_BODYSTRUCTURE))
-		fields |= MAIL_FETCH_IMAP_BODY;
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_IMAP_BODY);
 	if ((data->wanted_fields & MAIL_FETCH_IMAP_BODYSTRUCTURE) != 0 &&
 	    data->bodystructure == NULL &&
 	    !IMAPC_BOX_HAS_FEATURE(mbox, IMAPC_FEATURE_NO_FETCH_BODYSTRUCTURE))
-		fields |= MAIL_FETCH_IMAP_BODYSTRUCTURE;
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_IMAP_BODYSTRUCTURE);
 	if ((data->wanted_fields & MAIL_FETCH_GUID) != 0 &&
 	    data->guid == NULL && mbox->guid_fetch_field_name != NULL)
-		fields |= MAIL_FETCH_GUID;
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_GUID);
 
 	if (data->stream == NULL && data->access_part != 0) {
 		if ((data->access_part & (READ_BODY | PARSE_BODY)) != 0)
-			fields |= MAIL_FETCH_STREAM_BODY;
-		fields |= MAIL_FETCH_STREAM_HEADER;
+			fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_STREAM_BODY);
+		fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_STREAM_HEADER);
 	}
 	return fields;
 }
@@ -408,7 +408,7 @@ bool imapc_mail_prefetch(struct mail *_mail)
 		if (!IMAPC_BOX_HAS_FEATURE(mbox, IMAPC_FEATURE_NO_FETCH_HEADERS))
 			headers = data->wanted_headers->name;
 		else
-			fields |= MAIL_FETCH_STREAM_HEADER;
+			fields = static_cast<mail_fetch_field>(fields | MAIL_FETCH_STREAM_HEADER);
 	}
 	if (fields != 0 || headers != NULL) T_BEGIN {
 		if (imapc_mail_send_fetch(_mail, fields, headers) > 0)
@@ -425,40 +425,40 @@ imapc_mail_have_fields(struct imapc_mail *imail, enum mail_fetch_field fields)
 	if ((fields & MAIL_FETCH_RECEIVED_DATE) != 0) {
 		if (imail->imail.data.received_date == (time_t)-1)
 			return FALSE;
-		fields &= ENUM_NEGATE(MAIL_FETCH_RECEIVED_DATE);
+		fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(MAIL_FETCH_RECEIVED_DATE));
 	}
 	if ((fields & MAIL_FETCH_SAVE_DATE) != 0) {
 		i_assert(HAS_ALL_BITS(mbox->capabilities,
 				      IMAPC_CAPABILITY_SAVEDATE));
 		if (imail->imail.data.save_date == (time_t)-1)
 			return FALSE;
-		fields &= ENUM_NEGATE(MAIL_FETCH_SAVE_DATE);
+		fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(MAIL_FETCH_SAVE_DATE));
 	}
 	if ((fields & (MAIL_FETCH_PHYSICAL_SIZE | MAIL_FETCH_VIRTUAL_SIZE)) != 0) {
 		if (imail->imail.data.physical_size == UOFF_T_MAX)
 			return FALSE;
-		fields &= ENUM_NEGATE(MAIL_FETCH_PHYSICAL_SIZE | MAIL_FETCH_VIRTUAL_SIZE);
+		fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(MAIL_FETCH_PHYSICAL_SIZE | MAIL_FETCH_VIRTUAL_SIZE));
 	}
 	if ((fields & MAIL_FETCH_GUID) != 0) {
 		if (imail->imail.data.guid == NULL)
 			return FALSE;
-		fields &= ENUM_NEGATE(MAIL_FETCH_GUID);
+		fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(MAIL_FETCH_GUID));
 	}
 	if ((fields & MAIL_FETCH_IMAP_BODY) != 0) {
 		if (imail->imail.data.body == NULL)
 			return FALSE;
-		fields &= ENUM_NEGATE(MAIL_FETCH_IMAP_BODY);
+		fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(MAIL_FETCH_IMAP_BODY));
 	}
 	if ((fields & MAIL_FETCH_IMAP_BODYSTRUCTURE) != 0) {
 		if (imail->imail.data.bodystructure == NULL)
 			return FALSE;
-		fields &= ENUM_NEGATE(MAIL_FETCH_IMAP_BODYSTRUCTURE);
+		fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(MAIL_FETCH_IMAP_BODYSTRUCTURE));
 	}
 	if ((fields & (MAIL_FETCH_STREAM_HEADER |
 		       MAIL_FETCH_STREAM_BODY)) != 0) {
 		if (imail->imail.data.stream == NULL)
 			return FALSE;
-		fields &= ENUM_NEGATE(MAIL_FETCH_STREAM_HEADER | MAIL_FETCH_STREAM_BODY);
+		fields = static_cast<mail_fetch_field>(fields & ENUM_NEGATE(MAIL_FETCH_STREAM_HEADER | MAIL_FETCH_STREAM_BODY));
 	}
 	i_assert(fields == 0);
 	return TRUE;
@@ -485,7 +485,7 @@ int imapc_mail_fetch(struct mail *_mail, enum mail_fetch_field fields,
 		return -1;
 	}
 
-	fields |= imapc_mail_get_wanted_fetch_fields(imail);
+	fields = static_cast<mail_fetch_field>(fields | imapc_mail_get_wanted_fetch_fields(imail));
 	T_BEGIN {
 		ret = imapc_mail_send_fetch(_mail, fields, headers);
 	} T_END;
@@ -726,8 +726,8 @@ imapc_fetch_header_stream(struct imapc_mail *mail,
 			  const struct imap_arg *args)
 {
 	const enum message_header_parser_flags hdr_parser_flags =
-		MESSAGE_HEADER_PARSER_FLAG_SKIP_INITIAL_LWSP |
-		MESSAGE_HEADER_PARSER_FLAG_DROP_CR;
+		static_cast<message_header_parser_flags>(MESSAGE_HEADER_PARSER_FLAG_SKIP_INITIAL_LWSP |
+		MESSAGE_HEADER_PARSER_FLAG_DROP_CR);
 	const struct imap_arg *hdr_list;
 	struct mailbox_header_lookup_ctx *headers_ctx;
 	struct message_header_parser_ctx *parser;

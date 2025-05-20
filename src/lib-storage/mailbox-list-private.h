@@ -169,7 +169,7 @@ struct mailbox_list_iterate_context {
 	char *specialuse_info_flags;
 
 	ARRAY(union mailbox_list_iterate_module_context *) module_contexts;
-	HASH_TABLE(const char *, void*) found_mailboxes;
+	HASH_TABLE(char *, void*) found_mailboxes;
 };
 
 struct mailbox_list_iter_update_context {
